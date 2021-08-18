@@ -63,7 +63,15 @@ classdef ImageProcessing
     function matImage = img2matrix(img)
       sizeImage = size(img);
       mn = sizeImage(1)*sizeImage(2);
-      matImage = gpuArray(reshape(img,[mn 3]));
+      % Si es posible, utiliza gpu para acelerar el proceso
+      if gpuDeviceCount("available") > 0
+        matImage = gpuArray(reshape(img,[mn 3]));
+      else
+        matImage = zeros(sizeImage(1)*sizeImage(2),3);
+        for i = 1:sizeImage(2) % Recorre las columnas de la imagen
+          matImage(i:i+sizeImage(1)-1,:) = squeeze(img(:,i,:));
+        end
+      end
     end
 
     %{
