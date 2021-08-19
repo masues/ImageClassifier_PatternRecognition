@@ -89,7 +89,7 @@ classdef ImageProcessing
       end
     end
 
-        %{
+    %{
     Rescala la imagen en relación 2:1
     Aplica filtro de sobel horizontal y vertical
     Args:
@@ -115,6 +115,108 @@ classdef ImageProcessing
       %Al hacer la concatenación pasa los doubles de la convocuión a uint8
     end
 
+    %{
+    Crea un vector a partir de un tensor que representa a una imagen RGB.
+    Args:
+      img: imágen en formato tensor uint8 de tamaño (m x n x k)
+      Como es una imagen rgb, k = 3
+    Returns:
+      Vector columna de tamaño mnk que representa todas las columnas de la
+      imagen agrupadas en una sola, primero los valores R, luego los valores G
+      y al último los valores B
+    %}
+    function vecImg = img2vec(img)
+      sizeImage = size(img);
+      mnk = sizeImage(1)*sizeImage(2)*sizeImage(3);
+      % Si es posible, utiliza gpu para acelerar el proceso
+      if gpuDeviceCount("available") > 0
+        vecImg = gpuArray(reshape(img,[mnk 1]));
+      else
+        vecImg = reshape(img,[mnk 1]);
+      end
+    end
+
+    %{
+    Genera una matriz que representa a todas las muestras de imágenes.
+    Esta función es utilizada para generar el conjunto de datos de entrada de la
+    red neuronal.
+    Args:
+      imgs: Cell array que contiene clases de imágenes.
+        La primer dimensión es la clase y la segunda se refiere a la imagen
+        n-ésima. Todas las imagenes deben tener el mismo tamaño (m x n x k).
+    Returns:
+      Matriz de tamaño (mnk x l) que representa a todas las imágenes agrupadas
+      como vecotores columna. l es el numero total de imágenes
+    %}
+    function imageInputs = imageInputs(imgs)
+      imageInputsCell = {};
+      % Itera sobre las clases de imagenes
+      for i = 1:length(imgs)
+        imageInputsCell{i} =  cell2mat( ...
+          cellfun(@(img) ImageProcessing.img2vec(img), ...
+          imgs{i}, 'UniformOutput', false) ...
+        );
+      end
+      imageInputs = double(cell2mat(imageInputsCell));
+    end
+
+    %{
+    Genera una matriz que representa la clasificación deseada dada un
+    conjunto de imágenes.
+    Args:
+      imgs: Cell array que contiene clases de imágenes.
+        La primer dimensión es la clase y la segunda se refiere a la imagen
+        n-ésima.
+    Returns:
+      Matriz de tamaño (u x l) que representa a la clasificación de de los
+      datos de entrada. u es el número de clases, l es el núemro de imágenes.
+    %}
+    function imageOutputs = imageOutputs(imgs)
+      numClasses = length(imgs);
+      lenClasses = [];
+      % Itera sobre las clases de imagenes
+      for i = 1:numClasses
+        lenClasses = [ lenClasses , length(imgs{i})];
+      end
+
+      numOutputs = sum(lenClasses);
+
+      % Crea una matriz con ceros
+      imageOutputs = zeros([numClasses numOutputs]);
+
+      % Llena las columnas correspondientes a la primer clase
+      imageOutputs(1,1:lenClasses(1)) = ones(1,lenClasses(1));
+
+      % Llena con 1's el renglón iésimo de los registros que corresponen a la
+      % clase iésima
+      for i = 2:numClasses
+        offset = sum(lenClasses(1:i-1));
+        imageOutputs(i,offset+1:offset+lenClasses(i)) = ones(1,lenClasses(i));
+      end
+    end
+
+    %{
+    Estandariza el tamaño de las imágenes
+    Args:
+      imgs: Cell array que contiene clases de imágenes.
+        La primer dimensión es la clase y la segunda se refiere a la imagen
+        n-ésima. Las imágenes son tensores uint8 de tamaño (m x n x k)
+        Como es una imagen rgb, k = 3
+      rows: Altura requerida para las imagenes
+      cols: Anchura requerida para las imagenes
+    Returns:
+      Cell array que contiene clases de imágenes.
+        La primer dimensión es la clase y la segunda se refiere a la imagen
+        n-ésima estandarizada a (rows x cols) pixeles
+    %}
+    function standarizedImgs  = standarizeImgSizes(imgs,rows,cols)
+      standarizedImgs = {};
+      % Itera sobre las clases de imagenes
+      for i = 1:length(imgs)
+        standarizedImgs{i} = cellfun(@(img) imresize(img,[rows cols]), ...
+          imgs{i}, 'UniformOutput', false);
+      end
+    end
+
   end
 end
- % Falta recorrer todas las imágenes, obtener su represetnación en matriz, agrupar estas representaciones en una sola matriz de (k x 3) y aplicar la cuatnización
