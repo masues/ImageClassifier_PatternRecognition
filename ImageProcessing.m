@@ -8,7 +8,7 @@ classdef ImageProcessing
       extension: Extensión de las imágenes
     Returns:
       Cell array con imágenes en formato tensor uint8 de tamaño (m x n x 3)
-    %}    
+    %}
     function images = getImagesInDir(directory,extension)
         % Obtiene una lista de imágenes del directorio dado
         imageFiles = dir(directory+'/*'+extension);
@@ -31,7 +31,7 @@ classdef ImageProcessing
         n-ésima.
       imageMap: container.Map para mapear los valores numéricos de las
         clasificaciones a los nombres de la clase
-    %}    
+    %}
     function [imageClasses,imageMap] = getImagesClasses(directory)
       % Obtiene una lista de directorios
       files = dir(directory);
@@ -63,16 +63,15 @@ classdef ImageProcessing
     function matImage = img2matrix(img)
       sizeImage = size(img);
       mn = sizeImage(1)*sizeImage(2);
+      k = sizeImage(3);
       % Si es posible, utiliza gpu para acelerar el proceso
       if gpuDeviceCount("available") > 0
-        matImage = gpuArray(reshape(img,[mn 3]));
+        matImage = gpuArray(reshape(img,[mn k]));
       else
-        matImage = zeros(sizeImage(1)*sizeImage(2),3);
-        for i = 1:sizeImage(2) % Recorre las columnas de la imagen
-          matImage(i:i+sizeImage(1)-1,:) = squeeze(img(:,i,:));
-        end
+        matImage = reshape(img,[mn k]);
       end
     end
+
 
     %{
     Genera una matriz que representa a todos valores RGB de una clase de
@@ -88,6 +87,32 @@ classdef ImageProcessing
       for i=1:length(imageClass)
         matClass = [matClass; ImageProcessing.img2matrix(imageClass{i})];
       end
+    end
+
+        %{
+    Rescala la imagen en relación 2:1
+    Aplica filtro de sobel horizontal y vertical
+    Args:
+      img: Cell array con imágenes en formato tensor uint8 de tamaño (m x n x 3)
+    Returns:
+      Matriz de tamaño (k x 3) que representa a todos los pixeles RGB de todas
+      las imágenes de la clase.
+    %}
+
+    function img_filter = filter(image)
+      sobel_V = [-1 0 1; -2 0 2; -1 0 1];
+      sobel_H = transpose(sobel_V);
+      r = image(:,:,1);
+      g = image(:,:,2);
+      b = image(:,:,3);
+      r_v = conv2(r,sobel_V,'same');
+      g_v = conv2(g,sobel_V,'same');
+      b_v = conv2(b,sobel_V,'same');
+      r_h = conv2(r,sobel_H,'same');
+      g_h = conv2(g,sobel_H,'same');
+      b_h = conv2(b,sobel_H,'same');
+      img_filter = cat(3,r,g,b,r_v,g_v,b_v,r_h,g_h,b_h);
+      %Al hacer la concatenación pasa los doubles de la convocuión a uint8
     end
 
   end
