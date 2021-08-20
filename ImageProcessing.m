@@ -130,7 +130,8 @@ classdef ImageProcessing
       mnk = sizeImage(1)*sizeImage(2)*sizeImage(3);
       % Si es posible, utiliza gpu para acelerar el proceso
       if gpuDeviceCount("available") > 0
-        vecImg = gpuArray(reshape(img,[mnk 1]));
+        %vecImg = gpuArray(reshape(img,[mnk 1]));
+        vecImg = reshape(img,[mnk 1]);
       else
         vecImg = reshape(img,[mnk 1]);
       end
